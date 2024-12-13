@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 
 interface MainCircleProps {
   onOptionClick: (option: "debit" | "credit") => void;
+  bankName: string; // Add this line
 }
 
 const draw = {
@@ -16,20 +17,25 @@ const draw = {
   }),
 };
 
-const MainCircle = ({ onOptionClick }: MainCircleProps) => {
+const MainCircle = ({ onOptionClick, bankName }: MainCircleProps) => {
   return (
     <motion.div
-      className="relative w-full h-full flex items-center justify-center"
+      className="relative w-[400px] h-[400px] flex items-center justify-center"
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
     >
+      {/* Add bank name */}
+      <div className="absolute top-4 text-xl font-bold text-zinc-100">
+        {bankName}
+      </div>
+
       <motion.svg
         width="100%"
         height="100%"
         viewBox="0 0 600 600"
         initial="hidden"
         animate="visible"
-        className="absolute"
+        className="absolute scale-[0.8]"
       >
         <motion.circle
           cx="300"
@@ -43,7 +49,7 @@ const MainCircle = ({ onOptionClick }: MainCircleProps) => {
           custom={1}
         />
         <motion.circle
-          cx="180"
+          cx="174"
           cy="300"
           r="90"
           stroke="#52525b"
@@ -54,7 +60,7 @@ const MainCircle = ({ onOptionClick }: MainCircleProps) => {
           custom={2}
         />
         <motion.circle
-          cx="420"
+          cx="426"
           cy="300"
           r="90"
           stroke="#52525b"
@@ -66,9 +72,9 @@ const MainCircle = ({ onOptionClick }: MainCircleProps) => {
         />
       </motion.svg>
 
-      <div className="relative flex items-center justify-between w-[80%] max-w-4xl">
+      <div className="relative flex items-center justify-between w-[80%] max-w-4xl scale-[0.8]">
         <motion.button
-          className="w-[180px] h-[180px] rounded-full bg-zinc-800/90 text-zinc-100 font-bold shadow-lg border border-zinc-700 backdrop-blur-md flex items-center justify-center m-8"
+          className="w-[120px] h-[120px] rounded-full bg-zinc-800/90 text-zinc-100 font-bold shadow-lg border border-zinc-700 backdrop-blur-md flex items-center justify-center m-4"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           whileDrag={{ scale: 0.9, rotate: 10 }}
@@ -78,11 +84,11 @@ const MainCircle = ({ onOptionClick }: MainCircleProps) => {
           dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
           onClick={() => onOptionClick("debit")}
         >
-          <span className="text-2xl">Debit</span>
+          <span className="text-xl">Debit</span>
         </motion.button>
 
         <motion.button
-          className="w-[180px] h-[180px] rounded-full bg-zinc-800/90 text-zinc-100 font-bold shadow-lg border border-zinc-700 backdrop-blur-md flex items-center justify-center m-8"
+          className="w-[120px] h-[120px] rounded-full bg-zinc-800/90 text-zinc-100 font-bold shadow-lg border border-zinc-700 backdrop-blur-md flex items-center justify-center m-4"
           whileHover={{ scale: 1.1 }}
           whileTap={{ scale: 0.95 }}
           whileDrag={{ scale: 0.9, rotate: -10 }}
@@ -92,7 +98,7 @@ const MainCircle = ({ onOptionClick }: MainCircleProps) => {
           dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
           onClick={() => onOptionClick("credit")}
         >
-          <span className="text-2xl">Credit</span>
+          <span className="text-xl">Credit</span>
         </motion.button>
       </div>
     </motion.div>
