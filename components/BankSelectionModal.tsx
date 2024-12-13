@@ -17,7 +17,14 @@ const BankSelectionModal = ({
   className = "",
 }: BankSelectionModalProps) => {
   const [selectedBank, setSelectedBank] = useState<string | null>(null);
-  const banks = ["HBL", "UBL", "MCB", "ABL", "Meezan"];
+  const banks = [
+    "Region 1 - Defense",
+    "Region 2 - Gulberg",
+    "Region 3 - Johar Town",
+    "Region 4 - Model Town",
+    "Region 5 - Garden Town",
+    "Region 6 - Gulshan-e-Ravi",
+  ];
 
   return (
     <motion.div
