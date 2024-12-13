@@ -49,7 +49,9 @@ export default function Home() {
     { id: "e3-4", source: "bank-2", target: "bank-3", animated: true },
   ];
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onInit = useCallback(() => {
