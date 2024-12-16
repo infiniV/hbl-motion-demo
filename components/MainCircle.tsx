@@ -43,8 +43,10 @@ const MainCircle = ({
     setMounted(true);
   }, []);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleDrag = (event: any, info: any) => {
+  const handleDrag = (
+    event: MouseEvent | TouchEvent | PointerEvent,
+    info: { point: { x: number; y: number } }
+  ) => {
     const newPosition = {
       x: info.point.x,
       y: info.point.y,
