@@ -28,7 +28,7 @@ const BankSelectionModal = ({
 
   return (
     <motion.div
-      className={`flex items-center ${className}`}
+      className={`fixed inset-0 flex items-center justify-center z-50 ${className}`}
       initial={{ scale: 0.9, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0.9, opacity: 0 }}
