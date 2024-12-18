@@ -13,433 +13,529 @@ import ReactFlow, {
   useEdgesState,
   addEdge,
   Connection,
+  Edge,
 } from "reactflow";
 import "reactflow/dist/style.css";
-import { Card, CardContent, CardHeader } from "./ui/card";
-import { Checkbox } from "./ui/checkbox";
-import FloatingEdge from './FloatingEdge';
+import FloatingEdge from "./FloatingEdge";
+import FilterPanel from "./FilterPanel";
+import { parseCSVData, FilterData, TransactionData } from "@/utils/csvParser";
+import FilterButton from "./FilterButton";
 
-// Add detailed transaction type
-interface Transaction {
-  amount: number;
-  accountType: string;
-  customerType: string;
-  region: string;
-  area: string;
-}
+// Types
+// interface Transaction {
+//   amount: number;
+//   accountType: string;
+//   customerType: string;
+//   region: string;
+//   area: string;
+// }
 
-// Enhanced bank data structure
 interface BankData {
   name: string;
-  credit: Transaction[];
-  debit: Transaction[];
+  inflow: number; // Money coming into HBL
+  outflow: number; // Money going out from HBL
 }
-
-// Expanded PARTNER_BANKS data
-const PARTNER_BANKS: BankData[] = [
-  {
-    name: "Meezan Bank",
-    credit: [
-      { amount: 2000000, accountType: "Savings", customerType: "Individual", region: "North", area: "Urban" },
-      { amount: 3000000, accountType: "Current", customerType: "Corporate", region: "South", area: "Metropolitan" },
-    ],
-    debit: [
-      { amount: 1500000, accountType: "Fixed Deposit", customerType: "SME", region: "East", area: "Rural" },
-      { amount: 1500000, accountType: "Foreign Currency", customerType: "Government", region: "West", area: "Suburban" },
-    ],
-  },
-  {
-    name: "Allied Bank",
-    credit: [
-      { amount: 2500000, accountType: "Current", customerType: "Corporate", region: "South", area: "Metropolitan" },
-      { amount: 2000000, accountType: "Savings", customerType: "Individual", region: "North", area: "Urban" },
-    ],
-    debit: [
-      { amount: 1800000, accountType: "Fixed Deposit", customerType: "SME", region: "West", area: "Rural" },
-      { amount: 1000000, accountType: "Foreign Currency", customerType: "Government", region: "East", area: "Suburban" },
-    ],
-  },
-  {
-    name: "Bank Alfalah",
-    credit: [
-      { amount: 1800000, accountType: "Savings", customerType: "Individual", region: "East", area: "Urban" },
-      { amount: 2000000, accountType: "Current", customerType: "Corporate", region: "North", area: "Metropolitan" },
-    ],
-    debit: [
-      { amount: 1500000, accountType: "Fixed Deposit", customerType: "SME", region: "South", area: "Rural" },
-      { amount: 1000000, accountType: "Foreign Currency", customerType: "Government", region: "Central", area: "Suburban" },
-    ],
-  },
-  {
-    name: "UBL",
-    credit: [
-      { amount: 2200000, accountType: "Current", customerType: "Corporate", region: "West", area: "Metropolitan" },
-      { amount: 2000000, accountType: "Savings", customerType: "Individual", region: "Central", area: "Urban" },
-    ],
-    debit: [
-      { amount: 2000000, accountType: "Fixed Deposit", customerType: "SME", region: "North", area: "Rural" },
-      { amount: 1200000, accountType: "Foreign Currency", customerType: "Government", region: "South", area: "Suburban" },
-    ],
-  },
-  {
-    name: "MCB",
-    credit: [
-      { amount: 1900000, accountType: "Savings", customerType: "Individual", region: "South", area: "Urban" },
-      { amount: 1600000, accountType: "Current", customerType: "Corporate", region: "East", area: "Metropolitan" },
-    ],
-    debit: [
-      { amount: 1700000, accountType: "Fixed Deposit", customerType: "SME", region: "Central", area: "Rural" },
-      { amount: 1200000, accountType: "Foreign Currency", customerType: "Government", region: "West", area: "Suburban" },
-    ],
-  },
-  {
-    name: "Standard Chartered",
-    credit: [
-      { amount: 2800000, accountType: "Current", customerType: "Corporate", region: "Central", area: "Metropolitan" },
-      { amount: 1500000, accountType: "Foreign Currency", customerType: "Individual", region: "South", area: "Urban" },
-      { amount: 900000, accountType: "Savings", customerType: "SME", region: "North", area: "Suburban" },
-    ],
-    debit: [
-      { amount: 2100000, accountType: "Fixed Deposit", customerType: "Government", region: "East", area: "Metropolitan" },
-      { amount: 1300000, accountType: "Current", customerType: "Corporate", region: "West", area: "Rural" },
-      { amount: 700000, accountType: "Savings", customerType: "Individual", region: "Central", area: "Urban" },
-    ],
-  }
-];
 
 interface Filter {
   accountTypes: string[];
   customerTypes: string[];
+  beneficiaryBanks: string[];
   regions: string[];
   areas: string[];
   enabled: {
     accountTypes: string[];
     customerTypes: string[];
+    beneficiaryBanks: string[];
     regions: string[];
     areas: string[];
   };
 }
 
-const INITIAL_FILTERS: Filter = {
-  accountTypes: ["Savings", "Current", "Fixed Deposit", "Foreign Currency"],
-  customerTypes: ["Individual", "Corporate", "SME", "Government"],
-  regions: ["North", "South", "East", "West", "Central"],
-  areas: ["Urban", "Rural", "Metropolitan", "Suburban"],
-  enabled: {
-    accountTypes: [],
-    customerTypes: [],
-    regions: [],
-    areas: [],
-  },
+interface NodeData {
+  label: string;
+  isHBL?: boolean;
+  inflow?: number;
+  outflow?: number;
+  filters?: Filter;
+  transactions?: TransactionType[];
+}
+
+// Constants
+// const PARTNER_BANKS: BankData[] = [
+//   { name: "Meezan Bank", inflow: 5000000, outflow: 3000000 },
+//   { name: "Allied Bank", inflow: 4500000, outflow: 2800000 },
+//   { name: "Bank Alfalah", inflow: 3800000, outflow: 2500000 },
+//   { name: "UBL", inflow: 4200000, outflow: 3200000 },
+//   { name: "MCB", inflow: 3500000, outflow: 2900000 },
+//   { name: "Standard Chartered", inflow: 5200000, outflow: 4100000 },
+// ];
+
+// Add HBL's internal transactions
+type TransactionType = {
+  amount: number;
+  accountType: string;
+  customerType: string;
+  region: string;
+  area: string;
 };
 
-// Enhanced BankNode component with filtered totals
-const BankNode = ({ data }: NodeProps) => {
+// const HBL_TRANSACTIONS: {
+//   credit: TransactionType[];
+//   debit: TransactionType[];
+// } = {
+//   credit: [
+//     {
+//       amount: 5000000,
+//       accountType: "Savings",
+//       customerType: "Individual",
+//       region: "North",
+//       area: "Urban",
+//     },
+//     {
+//       amount: 8000000,
+//       accountType: "Current",
+//       customerType: "Corporate",
+//       region: "South",
+//       area: "Metropolitan",
+//     },
+//     {
+//       amount: 3000000,
+//       accountType: "Fixed Deposit",
+//       customerType: "SME",
+//       region: "East",
+//       area: "Rural",
+//     },
+//     {
+//       amount: 4000000,
+//       accountType: "Foreign Currency",
+//       customerType: "Government",
+//       region: "West",
+//       area: "Suburban",
+//     },
+//     {
+//       amount: 6000000,
+//       accountType: "Current",
+//       customerType: "Corporate",
+//       region: "Central",
+//       area: "Metropolitan",
+//     },
+//     {
+//       amount: 2500000,
+//       accountType: "Savings",
+//       customerType: "Individual",
+//       region: "North",
+//       area: "Rural",
+//     },
+//   ],
+//   debit: [
+//     {
+//       amount: 4500000,
+//       accountType: "Current",
+//       customerType: "Corporate",
+//       region: "South",
+//       area: "Metropolitan",
+//     },
+//     {
+//       amount: 3000000,
+//       accountType: "Savings",
+//       customerType: "Individual",
+//       region: "North",
+//       area: "Urban",
+//     },
+//     {
+//       amount: 2500000,
+//       accountType: "Fixed Deposit",
+//       customerType: "SME",
+//       region: "East",
+//       area: "Rural",
+//     },
+//     {
+//       amount: 3500000,
+//       accountType: "Foreign Currency",
+//       customerType: "Government",
+//       region: "West",
+//       area: "Suburban",
+//     },
+//     {
+//       amount: 5000000,
+//       accountType: "Current",
+//       customerType: "Corporate",
+//       region: "Central",
+//       area: "Metropolitan",
+//     },
+//     {
+//       amount: 2000000,
+//       accountType: "Savings",
+//       customerType: "Individual",
+//       region: "South",
+//       area: "Urban",
+//     },
+//   ],
+// };
+
+// Bank Node Component
+const BankNode = ({ data }: NodeProps<NodeData>) => {
   const getFilteredAmounts = () => {
     if (!data.isHBL) {
       return {
-        credit: data.credit.reduce((acc: number, t: Transaction) => acc + t.amount, 0),
-        debit: data.debit.reduce((acc: number, t: Transaction) => acc + t.amount, 0),
+        inflow: data.inflow || 0,
+        outflow: data.outflow || 0,
       };
     }
 
-    // Filter transactions based on enabled filters
-    const filterTransaction = (t: Transaction) => {
-      const filters = data.filters.enabled;
-      const matchesFilters = (
-        (filters.accountTypes.length === 0 || filters.accountTypes.includes(t.accountType)) &&
-        (filters.customerTypes.length === 0 || filters.customerTypes.includes(t.customerType)) &&
-        (filters.regions.length === 0 || filters.regions.includes(t.region)) &&
-        (filters.areas.length === 0 || filters.areas.includes(t.area))
-      );
-      return matchesFilters;
+    // Return accumulated amounts for HBL
+    return {
+      inflow: data.inflow || 0,
+      outflow: data.outflow || 0,
     };
-
-    const filteredCredit = data.allTransactions.credit
-      .filter(filterTransaction)
-      .reduce((acc: number, t: Transaction) => acc + t.amount, 0);
-
-    const filteredDebit = data.allTransactions.debit
-      .filter(filterTransaction)
-      .reduce((acc: number, t: Transaction) => acc + t.amount, 0);
-
-    return { credit: filteredCredit, debit: filteredDebit };
   };
 
-  const { credit: displayCredit, debit: displayDebit } = getFilteredAmounts();
+  const { inflow, outflow } = getFilteredAmounts();
 
   return (
-    <div 
-      className={`rounded-full bg-zinc-800/90 border-2 border-zinc-700 flex items-center justify-center ${
-        data.isHBL ? 'w-[400px] h-[400px]' : 'w-[200px] h-[200px]'
+    <div
+      className={`relative rounded-full bg-zinc-800/90 border-2 border-zinc-700 flex items-center justify-center 
+      transition-all duration-300 hover:shadow-lg hover:shadow-zinc-800/50 
+      ${
+        data.isHBL
+          ? "w-[500px] h-[500px]"
+          : "w-[220px] h-[220px] hover:scale-105"
       }`}
     >
-      {/* Credit handles */}
+      {/* Glowing handles */}
       <Handle
         type="target"
         position={Position.Left}
-        id="credit"
-        style={{ top: '40%', background: '#22c55e' }}
+        id="inflow"
+        style={{
+          top: "40%",
+          width: data.isHBL ? "15px" : "10px",
+          height: data.isHBL ? "15px" : "10px",
+          background: "#22c55e",
+          border: "2px solid #16a34a",
+          boxShadow: "0 0 10px #22c55e",
+        }}
       />
-      {/* Debit handles */}
       <Handle
         type="source"
         position={Position.Right}
-        id="debit"
-        style={{ top: '60%', background: '#ef4444' }}
+        id="outflow"
+        style={{
+          top: "60%",
+          width: data.isHBL ? "15px" : "10px",
+          height: data.isHBL ? "15px" : "10px",
+          background: "#ef4444",
+          border: "2px solid #dc2626",
+          boxShadow: "0 0 10px #ef4444",
+        }}
       />
-      
-      <div className="text-center p-4">
-        <h3 className={`font-bold text-zinc-100 ${data.isHBL ? 'text-4xl mb-4' : 'text-xl'}`}>
+
+      {/* Inner content */}
+      <div className="text-center p-8">
+        <h3
+          className={`font-bold text-zinc-100 mb-4 ${
+            data.isHBL ? "text-5xl" : "text-2xl"
+          }`}
+        >
           {data.label}
         </h3>
-        {data.isHBL ? (
-          <div className="mt-6">
-            <p className="text-green-400 text-2xl mb-3">
-              Total Credit: ${displayCredit.toLocaleString()}
-            </p>
-            <p className="text-red-400 text-2xl">
-              Total Debit: ${displayDebit.toLocaleString()}
-            </p>
-            {data.filters.enabled.accountTypes.length > 0 && (
-              <p className="text-sm text-zinc-400 mt-2">
-                Filtered by: {data.filters.enabled.accountTypes.join(", ")}
+        <div className={`flex flex-col gap-4 ${data.isHBL ? "mt-6" : "mt-3"}`}>
+          <div className="space-y-3">
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-green-500 shadow-lg shadow-green-500/50" />
+              <p
+                className={`text-green-400 ${
+                  data.isHBL ? "text-3xl" : "text-xl"
+                }`}
+              >
+                ${inflow.toLocaleString()}
               </p>
-            )}
+            </div>
+            <div className="flex items-center justify-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-red-500 shadow-lg shadow-red-500/50" />
+              <p
+                className={`text-red-400 ${
+                  data.isHBL ? "text-3xl" : "text-xl"
+                }`}
+              >
+                ${outflow.toLocaleString()}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="mt-2">
-            <p className="text-green-400">
-              Credit: ${displayCredit.toLocaleString()}
-            </p>
-            <p className="text-red-400">
-              Debit: ${displayDebit.toLocaleString()}
-            </p>
-          </div>
-        )}
+        </div>
       </div>
+
+      {/* Background glow effect */}
+      {data.isHBL && (
+        <div className="absolute inset-0 rounded-full bg-gradient-to-r from-green-500/5 to-red-500/5 -z-10" />
+      )}
     </div>
   );
 };
 
+// Node Types
 const nodeTypes = {
   bankNode: BankNode,
 };
 
+// Edge Types
 const edgeTypes = {
   floating: FloatingEdge,
 };
 
-// Add type for connect params
-// interface ConnectParams {
-//   source: string;
-//   target: string;
-//   sourceHandle: string;
-//   targetHandle: string;
-// }
-
+// Main Component
 export default function HBLDashboard() {
-  const [filters, setFilters] = useState<Filter>(INITIAL_FILTERS);
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [filterData, setFilterData] = useState<FilterData | null>(null);
+  const [banksData, setBanksData] = useState<Map<string, BankData>>(new Map());
+  const [transactions, setTransactions] = useState<TransactionData[]>([]);
+  const [filters, setFilters] = useState<Filter>({
+    accountTypes: [],
+    customerTypes: [],
+    beneficiaryBanks: [],
+    regions: [],
+    areas: [],
+    enabled: {
+      accountTypes: [],
+      customerTypes: [],
+      beneficiaryBanks: [],
+      regions: [],
+      areas: [],
+    },
+  });
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+
+  // Load CSV data
+  useEffect(() => {
+    parseCSVData().then(({ filters, banks, transactions }) => {
+      setFilterData(filters);
+      setBanksData(banks);
+      setTransactions(transactions);
+      setFilters((prev) => ({
+        ...prev,
+        ...filters,
+      }));
+    });
+  }, []);
 
   // Handle filter changes
-  const toggleFilter = (category: keyof Filter['enabled'], value: string) => {
-    setFilters(prev => ({
+  const toggleFilter = useCallback((category: string, value: string) => {
+    setFilters((prev) => ({
       ...prev,
       enabled: {
         ...prev.enabled,
-        [category]: prev.enabled[category].includes(value)
-          ? prev.enabled[category].filter(v => v !== value)
-          : [...prev.enabled[category], value]
-      }
+        [category]: prev.enabled[category as keyof Filter["enabled"]].includes(
+          value
+        )
+          ? prev.enabled[category as keyof Filter["enabled"]].filter(
+              (v) => v !== value
+            )
+          : [...prev.enabled[category as keyof Filter["enabled"]], value],
+      },
+    }));
+  }, []);
+
+  // Add clear filters function
+  const clearFilters = () => {
+    setFilters((prev) => ({
+      ...prev,
+      enabled: {
+        accountTypes: [],
+        customerTypes: [],
+        beneficiaryBanks: [],
+        regions: [],
+        areas: [],
+      },
     }));
   };
 
-  // Calculate totals
-  const totalCredit = PARTNER_BANKS.reduce((acc, bank) => acc + bank.credit.reduce((acc, t) => acc + t.amount, 0), 0);
-  const totalDebit = PARTNER_BANKS.reduce((acc, bank) => acc + bank.debit.reduce((acc, t) => acc + t.amount, 0), 0);
+  const [nodes, setNodes, onNodesChange] = useNodesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  // Update onConnect type to match ReactFlow's Connection type
+  // Calculate totals
+  // const totalInflow = PARTNER_BANKS.reduce((acc, bank) => acc + bank.inflow, 0);
+  // const totalOutflow = PARTNER_BANKS.reduce(
+  //   (acc, bank) => acc + bank.outflow,
+  //   0
+  // );
+
+  // Handle connections
   const onConnect = useCallback(
-    (connection: Connection) => {
-      if (connection.source && connection.target) {
-        setEdges((eds) => addEdge({ ...connection, type: 'floating' }, eds));
-      }
+    (params: Connection) => {
+      setEdges((eds) => addEdge({ ...params, type: "floating" }, eds));
     },
     [setEdges]
   );
 
-  // Update dimensions and initialize flow elements
+  // Calculate dynamic radius based on number of banks
+  const calculateRadius = (numBanks: number) => {
+    return Math.max(700, numBanks * 100); // Increase radius for more banks
+  };
+
+  // Get filtered transactions based on current filters
+  const getFilteredTransactions = useCallback(() => {
+    return transactions.filter((t) => {
+      const { enabled } = filters;
+      return (
+        (enabled.accountTypes.length === 0 ||
+          enabled.accountTypes.includes(t.accountType)) &&
+        (enabled.customerTypes.length === 0 ||
+          enabled.customerTypes.includes(t.customerType)) &&
+        (enabled.beneficiaryBanks.length === 0 ||
+          enabled.beneficiaryBanks.includes(t.beneficiaryBank)) &&
+        (enabled.regions.length === 0 || enabled.regions.includes(t.region)) &&
+        (enabled.areas.length === 0 || enabled.areas.includes(t.area))
+      );
+    });
+  }, [transactions, filters]);
+
+  // // Calculate HBL amounts based on filtered transactions
+  // const getHBLAmounts = useCallback(() => {
+  //   const filteredTransactions = getFilteredTransactions();
+  //   const credit = filteredTransactions
+  //     .filter((t) => t.type === "CREDIT")
+  //     .reduce((sum, t) => sum + t.amount, 0);
+  //   const debit = filteredTransactions
+  //     .filter((t) => t.type === "DEBIT")
+  //     .reduce((sum, t) => sum + t.amount, 0);
+  //   return { credit, debit };
+  // }, [getFilteredTransactions]);
+
+  // Get visible banks based on filters
+  const getVisibleBanks = useCallback(() => {
+    const selectedBanks = filters.enabled.beneficiaryBanks;
+    if (selectedBanks.length === 0) {
+      return Array.from(banksData.entries());
+    }
+    return Array.from(banksData.entries()).filter(([name]) =>
+      selectedBanks.includes(name)
+    );
+  }, [banksData, filters.enabled.beneficiaryBanks]);
+
+  // Calculate totals for HBL from all transactions
+  const calculateHBLTotals = useCallback(
+    (filteredTransactions: TransactionData[]) => {
+      return filteredTransactions.reduce(
+        (acc, t) => {
+          if (t.type === "CREDIT") {
+            acc.inflow += t.amount;
+          } else {
+            acc.outflow += t.amount;
+          }
+          return acc;
+        },
+        { inflow: 0, outflow: 0 }
+      );
+    },
+    []
+  );
+
+  // Initialize and update nodes/edges
   useEffect(() => {
+    if (!banksData.size) return;
+
     const centerX = window.innerWidth / 2;
     const centerY = window.innerHeight / 2;
-    const radius = 600;
+    const visibleBanks = getVisibleBanks();
+    const radius = calculateRadius(visibleBanks.length);
 
-    // Aggregate all transactions for HBL node
-    const allTransactions = {
-      credit: PARTNER_BANKS.flatMap(bank => bank.credit),
-      debit: PARTNER_BANKS.flatMap(bank => bank.debit),
-    };
+    // Get filtered transactions and calculate HBL totals
+    const filteredTransactions = getFilteredTransactions();
+    const hblTotals = calculateHBLTotals(filteredTransactions);
 
-    // Create HBL node with all transactions
-    const hblNode: Node = {
+    // Create HBL node with accumulated totals
+    const hblNode: Node<NodeData> = {
       id: "hbl",
       type: "bankNode",
-      position: { x: centerX - 200, y: centerY - 200 },
+      position: { x: centerX - 250, y: centerY - 250 },
       data: {
         label: "HBL Bank",
         isHBL: true,
-        totalCredit,
-        totalDebit,
-        filters,
-        allTransactions, // Add aggregated transactions
+        inflow: hblTotals.inflow,
+        outflow: hblTotals.outflow,
       },
       draggable: false,
     };
 
-    // Create partner nodes
-    const partnerNodes: Node[] = PARTNER_BANKS.map((bank, index) => {
-      const angle = (index * (360 / PARTNER_BANKS.length) - 90) * (Math.PI / 180);
-      const x = centerX + radius * Math.cos(angle) - 100;
-      const y = centerY + radius * Math.sin(angle) - 100;
+    // Create partner nodes dynamically
+    const bankEntries = Array.from(banksData.entries());
+    const partnerNodes: Node<NodeData>[] = bankEntries.map(
+      ([name, data], index) => {
+        const angle =
+          (index * (360 / bankEntries.length) - 90) * (Math.PI / 180);
+        const x = centerX + radius * Math.cos(angle) - 110;
+        const y = centerY + radius * Math.sin(angle) - 110;
 
-      return {
-        id: bank.name,
-        type: "bankNode",
-        position: { x, y },
-        data: {
-          label: bank.name,
-          credit: bank.credit,
-          debit: bank.debit,
-          filters,
-        },
-        draggable: true,
-      };
-    });
+        return {
+          id: name,
+          type: "bankNode",
+          position: { x, y },
+          data: {
+            label: name,
+            inflow: data.inflow,
+            outflow: data.outflow,
+          },
+          draggable: true,
+        };
+      }
+    );
 
     setNodes([hblNode, ...partnerNodes]);
 
-    // Create edges with floating edge type
-    const flowEdges = PARTNER_BANKS.flatMap((bank) => {
-      const sourceNode = partnerNodes.find(n => n.id === bank.name);
-      const targetNode = hblNode;
-      
-      if (!sourceNode) return [];
-
-      const sourceX = sourceNode.position.x + 100; // Half of partner node width
-      const sourceY = sourceNode.position.y + 100;
-      const targetX = targetNode.position.x + 200; // Half of HBL node width
-      const targetY = targetNode.position.y + 200;
+    // Update edges with actual transaction amounts
+    const flowEdges: Edge[] = visibleBanks.flatMap(([name]) => {
+      const bankTransactions = filteredTransactions.filter(
+        (t) => t.beneficiaryBank === name
+      );
+      const bankTotals = calculateHBLTotals(bankTransactions);
 
       return [
-        // Credit line (green)
         {
-          id: `${bank.name}-credit`,
-          source: bank.name,
+          id: `${name}-inflow`,
+          source: name,
           target: "hbl",
-          sourceX,
-          sourceY,
-          targetX,
-          targetY,
-          type: 'floating',
+          type: "floating",
           animated: true,
           style: {
             stroke: "#22c55e",
-            strokeWidth: getEdgeThickness(bank.credit.reduce((acc, t) => acc + t.amount, 0), totalCredit),
-            opacity: 0.8,
+            strokeWidth: getEdgeThickness(bankTotals.inflow, hblTotals.inflow),
           },
-          data: { amount: bank.credit.reduce((acc, t) => acc + t.amount, 0) },
         },
-        // Debit line (red)
         {
-          id: `${bank.name}-debit`,
+          id: `${name}-outflow`,
           source: "hbl",
-          target: bank.name,
-          sourceX: targetX,
-          sourceY: targetY,
-          targetX: sourceX,
-          targetY: sourceY,
-          type: 'floating',
+          target: name,
+          type: "floating",
           animated: true,
           style: {
             stroke: "#ef4444",
-            strokeWidth: getEdgeThickness(bank.debit.reduce((acc, t) => acc + t.amount, 0), totalDebit),
-            opacity: 0.8,
+            strokeWidth: getEdgeThickness(
+              bankTotals.outflow,
+              hblTotals.outflow
+            ),
           },
-          data: { amount: bank.debit.reduce((acc, t) => acc + t.amount, 0) },
         },
       ];
     });
 
     setEdges(flowEdges);
+  }, [
+    banksData,
+    filters,
+    getFilteredTransactions,
+    calculateHBLTotals,
+    getVisibleBanks,
+    setNodes,
+    setEdges,
+  ]);
 
-    // Simplified window resize handler
-    const handleResize = () => {
-      // Recalculate node positions on resize
-      const newCenterX = window.innerWidth / 2;
-      const newCenterY = window.innerHeight / 2;
-
-      setNodes(nodes => nodes.map(node => {
-        if (node.id === 'hbl') {
-          return {
-            ...node,
-            position: { x: newCenterX - 200, y: newCenterY - 200 },
-          };
-        }
-        
-        const index = PARTNER_BANKS.findIndex(bank => bank.name === node.id);
-        const angle = (index * (360 / PARTNER_BANKS.length) - 90) * (Math.PI / 180);
-        return {
-          ...node,
-          position: {
-            x: newCenterX + radius * Math.cos(angle) - 100,
-            y: newCenterY + radius * Math.sin(angle) - 100,
-          },
-        };
-      }));
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [setNodes, setEdges, totalCredit, totalDebit, filters]);
+  // Calculate total active filters
+  const activeFiltersCount = Object.values(filters.enabled).reduce(
+    (acc, curr) => acc + curr.length,
+    0
+  );
 
   return (
-    <div className="relative w-full h-screen bg-zinc-900">
-      {/* Filters Panel */}
-      <Card className="absolute left-4 top-4 w-64 z-10 bg-zinc-900/90 backdrop-blur-sm border-zinc-800">
-        <CardHeader>
-          <h2 className="text-xl font-bold text-zinc-100">Filters</h2>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {Object.entries(filters).map(([category, items]) => {
-            if (category === 'enabled') return null;
-            return (
-              <div key={category} className="space-y-2">
-                <h3 className="text-sm font-medium text-zinc-300 capitalize">
-                  {category.replace(/([A-Z])/g, " $1").trim()}
-                </h3>
-                <div className="space-y-2">
-                  {items.map((item: string) => (
-                    <div
-                      key={item}
-                      className="flex items-center space-x-2 text-zinc-400"
-                    >
-                      <Checkbox 
-                        id={item}
-                        checked={filters.enabled[category as keyof Filter['enabled']].includes(item)}
-                        onCheckedChange={() => toggleFilter(category as keyof Filter['enabled'], item)}
-                      />
-                      <label htmlFor={item}>{item}</label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            );
-          })}
-        </CardContent>
-      </Card>
-
+    <div className="relative w-full h-screen overflow-hidden bg-zinc-900">
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -455,13 +551,30 @@ export default function HBLDashboard() {
         connectionMode={ConnectionMode.Loose}
       >
         <Background color="#27272a" gap={20} />
-        <Controls />
+        <Controls className="!bg-zinc-900/90 !border-zinc-800" />
       </ReactFlow>
+
+      <FilterButton
+        onClick={() => setIsFilterOpen(!isFilterOpen)}
+        isOpen={isFilterOpen}
+        activeFiltersCount={activeFiltersCount}
+      />
+
+      {filterData && (
+        <FilterPanel
+          filters={filterData}
+          enabled={filters.enabled}
+          onToggleFilter={toggleFilter}
+          onClearFilters={clearFilters}
+          onClose={() => setIsFilterOpen(false)}
+          isOpen={isFilterOpen}
+        />
+      )}
     </div>
   );
 }
 
-// Helper function for edge thickness
+// Helper function
 const getEdgeThickness = (amount: number, total: number): number => {
   const minThickness = 2;
   const maxThickness = 20;
